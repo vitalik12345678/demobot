@@ -21,7 +21,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private static Map<Long, Map<String, Float>> initialCryptoRates = new HashMap<>();
     private static final long FIXED_DELAY_MS = 60000; // Update rates every 60 seconds
     private static final float PERCENTAGE_CHANGE_THRESHOLD = 0.000001f; // Set your desired percentage change threshold (e.g., 0.0001%)
-
+    private static final int MAX_USERS = 10; // Set your maximum user count (K) here
 
 
     @Override
@@ -37,20 +37,25 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
 
-        if(update.hasMessage() && update.getMessage().hasText()){
+        if(update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
 
-            if ("/start".equals(messageText)) {
-                startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                try {
-                    initialCryptoRates.put(chatId, CurrencyService.getCurrencyRates());
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+            if (cryptoMap.size() >= MAX_USERS) {
+                sendMessage(chatId, "Sorry, the bot is not available for new users at the moment.");
+            }
+            switch (messageText) {
+                case "/start" -> {
+                    startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                    try {
+                        initialCryptoRates.put(chatId, CurrencyService.getCurrencyRates());
+                        cryptoMap.put(chatId, new HashMap<>());
+                    } catch (IOException e) {
+                        handleCurrencyServiceError(chatId);
+                    }
                 }
             }
         }
-
     }
 
     private void startCommandReceived(Long chatId, String name) {
